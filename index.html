@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>LyricFinder</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- jsPDF Library for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #111827; /* gray-900 */
+            --card-bg-color: #1f2937; /* gray-800 */
+            --text-color: #f9fafb; /* gray-50 */
+            --text-muted-color: #9ca3af; /* gray-400 */
+            --border-color: #374151; /* gray-700 */
+            --primary-color: #22d3ee; /* cyan-400 */
+        }
+
+        html.light {
+            --bg-color: #f9fafb; /* gray-50 */
+            --card-bg-color: #ffffff; /* white */
+            --text-color: #1f2937; /* gray-800 */
+            --text-muted-color: #6b7280; /* gray-500 */
+            --border-color: #e5e7eb; /* gray-200 */
+            --primary-color: #0891b2; /* cyan-600 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        /* Custom styles for components to use CSS variables */
+        .card {
+            background-color: var(--card-bg-color);
+            border-color: var(--border-color);
+        }
+        .text-primary { color: var(--primary-color); }
+        .text-muted { color: var(--text-muted-color); }
+        .border-custom { border-color: var(--border-color); }
+        .focus-ring:focus {
+            --tw-ring-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .suggestion-item:hover { background-color: #374151; }
+        html.light .suggestion-item:hover { background-color: #f3f4f6; }
+
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-3xl">
+        
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl md:text-5xl font-bold text-primary mb-2">LyricFinder</h1>
+            <p class="text-muted">Letras, traducciones y más.</p>
+            
+            <!-- Theme Toggle Button -->
+            <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-color)] focus:ring-[var(--primary-color)]" title="Cambiar tema">
+                <svg id="theme-icon-light" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="theme-icon-dark" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </header>
+
+        <main>
+            <!-- Search Form -->
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="search-input"
+                    class="w-full card border-2 p-4 pr-12 text-lg rounded-lg focus:outline-none focus-ring transition duration-300"
+                    placeholder="Busca por artista o canción..."
+                    autocomplete="off"
+                >
+                <!-- Clear Button -->
+                <button id="clear-search-btn" class="absolute inset-y-0 right-0 flex items-center pr-4 text-muted hover:text-primary hidden">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <div id="suggestions-container" class="absolute z-10 w-full mt-1 card border rounded-lg shadow-lg overflow-hidden hidden"></div>
+            </div>
+
+            <!-- Search History -->
+            <div id="history-container" class="mt-4"></div>
+
+            <!-- Result Container -->
+            <div id="result-container" class="mt-8">
+                 <div id="message-display" class="card p-6 md:p-8 rounded-xl shadow-2xl min-h-[400px] flex flex-col items-center justify-center text-center text-muted">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 6l12-3" /></svg>
+                    <p class="mt-4">Los resultados aparecerán aquí.</p>
+                </div>
+            </div>
+        </main>
+        
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const suggestionsContainer = document.getElementById('suggestions-container');
+        const resultContainer = document.getElementById('result-container');
+        const historyContainer = document.getElementById('history-container');
+        const clearSearchBtn = document.getElementById('clear-search-btn');
+        
+        const API_LYRICS_URL = 'https://api.lyrics.ovh';
+        const API_ARTIST_URL = 'https://www.theaudiodb.com/api/v1/json/2/search.php?s=';
+        const API_TRANSLATE_URL = 'https://api.mymemory.translated.net/get';
+
+        // --- Theme Management ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const lightIcon = document.getElementById('theme-icon-light');
+        const darkIcon = document.getElementById('theme-icon-dark');
+
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.documentElement.classList.add('light');
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('light');
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+        // --- History Management ---
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('songHistory')) || [];
+            if (history.length === 0) {
+                historyContainer.innerHTML = '';
+                return;
+            }
+            historyContainer.innerHTML = `
+                <p class="text-sm text-muted mb-2">Búsquedas recientes:</p>
+                <div class="flex flex-wrap gap-2">
+                    ${history.map(item => `
+                        <button class="text-sm bg-[var(--card-bg-color)] border border-custom text-muted hover:bg-[var(--border-color)] px-3 py-1 rounded-full transition duration-200 history-item" data-artist="${escapeHtml(item.artist)}" data-title="${escapeHtml(item.title)}">
+                            ${item.artist} - ${item.title}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function saveToHistory(artist, title) {
+            let history = JSON.parse(localStorage.getItem('songHistory')) || [];
+            history = history.filter(item => !(item.artist === artist && item.title === title));
+            history.unshift({ artist, title });
+            history = history.slice(0, 5);
+            localStorage.setItem('songHistory', JSON.stringify(history));
+        }
+        
+        // --- PDF Generation ---
+        function generatePDF(artist, title, lyrics) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(22);
+            doc.text(title, 20, 20);
+
+            doc.setFontSize(16);
+            doc.text(`por ${artist}`, 20, 30);
+            
+            doc.setFontSize(12);
+            const lines = doc.splitTextToSize(lyrics, 170); 
+            doc.text(lines, 20, 45);
+            
+            doc.save(`${artist} - ${title}.pdf`);
+        }
+
+        // --- Main Logic ---
+        function debounce(func, delay = 350) {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+        
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/"/g, '&quot;');
+        }
+
+        // --- Language Detection ---
+        function detectLanguage(text) {
+            // Simple heuristic for language detection
+            const spanishChars = /[áéíóúñ¿¡]/i;
+            const commonSpanishWords = /\b(de|la|el|que|y|en|un)\b/gi;
+            if (spanishChars.test(text) || (text.match(commonSpanishWords) || []).length > 5) {
+                return 'es';
+            }
+            return 'en';
+        }
+
+        const getSuggestions = async (term) => {
+            if (!term.trim()) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+            suggestionsContainer.innerHTML = `<div class="p-4 text-muted">Buscando...</div>`;
+            suggestionsContainer.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_LYRICS_URL}/suggest/${term}`);
+                const data = await response.json();
+                displaySuggestions(data.data);
+            } catch (error) {
+                suggestionsContainer.innerHTML = `<div class="p-4 text-red-400">Error al buscar.</div>`;
+            }
+        };
+
+        function displaySuggestions(suggestions) {
+            if (!suggestions || suggestions.length === 0) {
+                suggestionsContainer.innerHTML = `<div class="p-4 text-muted">Sin resultados.</div>`;
+                return;
+            }
+            suggestionsContainer.innerHTML = suggestions.slice(0, 5).map(song => `
+                <div class="p-4 border-b border-custom cursor-pointer suggestion-item" data-artist="${escapeHtml(song.artist.name)}" data-title="${escapeHtml(song.title)}">
+                    <p class="font-bold">${song.title}</p>
+                    <p class="text-sm text-muted">${song.artist.name}</p>
+                </div>
+            `).join('');
+        }
+        
+        const fetchArtistInfo = async (artist) => {
+            try {
+                const response = await fetch(`${API_ARTIST_URL}${artist}`);
+                const data = await response.json();
+                const artistData = data.artists ? data.artists[0] : null;
+
+                if (!artistData) {
+                    return ``; // Don't show anything if no artist info found
+                }
+
+                const bio = artistData.strBiographyES || artistData.strBiographyEN || 'Biografía no disponible.';
+                const thumb = artistData.strArtistThumb || `https://placehold.co/96x96/${getComputedStyle(document.documentElement).getPropertyValue('--card-bg-color').substring(1)}/${getComputedStyle(document.documentElement).getPropertyValue('--text-muted-color').substring(1)}?text=?`;
+
+                return `
+                    <div class="card border-custom rounded-lg p-4 mt-8 flex flex-col md:flex-row items-center gap-4">
+                        <img src="${thumb}" alt="${artist}" class="w-24 h-24 rounded-full object-cover">
+                        <div class="text-center md:text-left">
+                           <h3 class="text-xl font-bold text-primary">${artistData.strArtist}</h3>
+                           <p class="text-sm text-muted mt-2">${bio.substring(0, 250)}...</p>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error("Artist fetch error:", error);
+                return ``;
+            }
+        };
+
+        const fetchLyrics = async (artist, title) => {
+            try {
+                const response = await fetch(`${API_LYRICS_URL}/v1/${artist}/${title}`);
+                const data = await response.json();
+                return data; 
+            } catch (error) {
+                console.error("Lyrics fetch error:", error);
+                return { error: "Error al cargar la letra." };
+            }
+        };
+
+        const getSongData = async (artist, title) => {
+            resultContainer.innerHTML = `<div class="card p-6 md:p-8 rounded-xl shadow-2xl min-h-[400px] flex flex-col items-center justify-center"><div class="text-center text-muted flex flex-col items-center"><svg class="animate-spin h-8 w-8 text-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><p class="mt-4">Buscando...</p></div></div>`;
+            window.scrollTo(0, 0);
+
+            const [lyricsData, artistHtml] = await Promise.all([
+                fetchLyrics(artist, title),
+                fetchArtistInfo(artist)
+            ]);
+            
+            const youtubeLink = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist} ${title} official video`)}`;
+            
+            let lyricsHtml = '';
+            let rawLyricsForPdf = '';
+            let translationButton = '';
+            let detectedLang = 'en';
+
+            if (lyricsData.error) {
+                lyricsHtml = `<p class="text-red-400 mt-4">${lyricsData.error}</p>`;
+            } else {
+                rawLyricsForPdf = lyricsData.lyrics;
+                detectedLang = detectLanguage(rawLyricsForPdf);
+                const buttonText = detectedLang === 'es' ? 'Traducir a Inglés' : 'Traducir a Español';
+                lyricsHtml = `<p id="lyrics-display" class="text-muted text-left md:text-center whitespace-pre-line leading-relaxed">${lyricsData.lyrics.replace(/(\r\n|\r|\n)/g, '<br>')}</p>`;
+                translationButton = `<button id="translate-btn" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">${buttonText}</button>`;
+            }
+            
+            resultContainer.innerHTML = `
+                <div class="card p-6 md:p-8 rounded-xl shadow-2xl w-full">
+                    <div class="text-center w-full">
+                        <h2 class="text-3xl font-bold text-primary mb-2">${title}</h2>
+                        <p class="text-xl text-muted mb-6">${artist}</p>
+                        <div class="flex flex-wrap justify-center gap-4 mb-8">
+                            <a href="${youtubeLink}" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Buscar Video en YouTube</a>
+                            <button id="download-pdf-btn" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Descargar Letra (PDF)</button>
+                            ${translationButton}
+                        </div>
+                        ${lyricsHtml}
+                        ${artistHtml}
+                    </div>
+                </div>
+            `;
+            
+            const resultCard = resultContainer.querySelector('.card');
+            resultCard.dataset.artist = artist;
+            resultCard.dataset.title = title;
+            resultCard.dataset.rawLyrics = rawLyricsForPdf;
+            resultCard.dataset.lang = detectedLang;
+            
+            saveToHistory(artist, title);
+            loadHistory();
+        };
+        
+        const translateLyrics = async (text, langpair) => {
+            const MAX_CHARS = 480; 
+            if (text.length <= MAX_CHARS) {
+                const response = await fetch(`${API_TRANSLATE_URL}?q=${encodeURIComponent(text)}&langpair=${langpair}`);
+                const data = await response.json();
+                return data.responseData.translatedText;
+            } else {
+                const chunks = [];
+                let currentChunk = '';
+                const paragraphs = text.split('\n');
+                
+                for(const p of paragraphs) {
+                    if (currentChunk.length + p.length < MAX_CHARS) {
+                        currentChunk += p + '\n';
+                    } else {
+                        chunks.push(currentChunk);
+                        currentChunk = p + '\n';
+                    }
+                }
+                if (currentChunk) chunks.push(currentChunk);
+
+                const translationPromises = chunks.map(chunk => 
+                    fetch(`${API_TRANSLATE_URL}?q=${encodeURIComponent(chunk)}&langpair=${langpair}`)
+                        .then(res => res.json())
+                        .then(data => data.responseData.translatedText)
+                );
+                
+                const translatedChunks = await Promise.all(translationPromises);
+                return translatedChunks.join('\n');
+            }
+        };
+
+        // --- Event Delegation & Listeners ---
+        resultContainer.addEventListener('click', async (e) => {
+            const pdfButton = e.target.closest('#download-pdf-btn');
+            const translateButton = e.target.closest('#translate-btn');
+
+            if (pdfButton) {
+                const card = e.target.closest('.card');
+                const { artist, title, rawLyrics } = card.dataset;
+                if (artist && title && rawLyrics) {
+                    generatePDF(artist, title, rawLyrics);
+                } else {
+                    alert('No hay letra para descargar.');
+                }
+            }
+
+            if (translateButton) {
+                const card = e.target.closest('.card');
+                const lyricsDisplay = document.getElementById('lyrics-display');
+                const originalLyrics = card.dataset.rawLyrics;
+                const detectedLang = card.dataset.lang;
+                const targetLang = detectedLang === 'es' ? 'en' : 'es';
+                const langpair = `${detectedLang}|${targetLang}`;
+                
+                if (translateButton.textContent.includes('Traducir')) {
+                    const storedTranslation = card.dataset.translatedLyrics;
+                    if (storedTranslation) {
+                        lyricsDisplay.innerHTML = storedTranslation.replace(/(\r\n|\r|\n)/g, '<br>');
+                        translateButton.textContent = 'Mostrar Original';
+                    } else {
+                        translateButton.textContent = 'Traduciendo...';
+                        translateButton.disabled = true;
+                        try {
+                            const translatedText = await translateLyrics(originalLyrics, langpair);
+                            card.dataset.translatedLyrics = translatedText;
+                            lyricsDisplay.innerHTML = translatedText.replace(/(\r\n|\r|\n)/g, '<br>');
+                            translateButton.textContent = 'Mostrar Original';
+                        } catch (error) {
+                            console.error("Translation error:", error);
+                            lyricsDisplay.innerHTML += `<br><p class="text-red-400 mt-4">No se pudo traducir la letra.</p>`;
+                            translateButton.textContent = detectedLang === 'es' ? 'Traducir a Inglés' : 'Traducir a Español';
+                        } finally {
+                            translateButton.disabled = false;
+                        }
+                    }
+                } else {
+                    lyricsDisplay.innerHTML = originalLyrics.replace(/(\r\n|\r|\n)/g, '<br>');
+                    translateButton.textContent = detectedLang === 'es' ? 'Traducir a Inglés' : 'Traducir a Español';
+                }
+            }
+        });
+
+        suggestionsContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (item) {
+                const { artist, title } = item.dataset;
+                getSongData(artist, title);
+                searchInput.value = `${artist} - ${title}`;
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+
+        historyContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.history-item');
+            if (item) {
+                const { artist, title } = item.dataset;
+                getSongData(artist, title);
+                searchInput.value = `${artist} - ${title}`;
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!suggestionsContainer.contains(e.target) && e.target !== searchInput) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+        
+        const debouncedGetSuggestions = debounce(getSuggestions);
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value;
+            if (term) {
+                clearSearchBtn.classList.remove('hidden');
+            } else {
+                clearSearchBtn.classList.add('hidden');
+                suggestionsContainer.classList.add('hidden');
+            }
+            debouncedGetSuggestions(term);
+        });
+
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            suggestionsContainer.classList.add('hidden');
+            clearSearchBtn.classList.add('hidden');
+            searchInput.focus();
+        });
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            const systemTheme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            applyTheme(savedTheme || systemTheme);
+            loadHistory();
+        });
+    </script>
+</body>
+</html>
+
