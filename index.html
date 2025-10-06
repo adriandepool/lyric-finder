@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LyricFinder</title>
     
     <!-- Tailwind CSS via CDN -->
@@ -171,16 +171,30 @@
         function generatePDF(artist, title, lyrics) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            const pageHeight = doc.internal.pageSize.height;
+            const margin = 20;
+            let y = margin;
 
             doc.setFontSize(22);
-            doc.text(title, 20, 20);
+            doc.text(title, margin, y);
+            y += 10;
 
             doc.setFontSize(16);
-            doc.text(`por ${artist}`, 20, 30);
-            
+            doc.text(`por ${artist}`, margin, y);
+            y += 15;
+
             doc.setFontSize(12);
-            const lines = doc.splitTextToSize(lyrics, 170); 
-            doc.text(lines, 20, 45);
+            const lines = doc.splitTextToSize(lyrics, 170); // 170mm width
+            const lineHeight = 7; 
+
+            lines.forEach(line => {
+                if (y + lineHeight > pageHeight - margin) {
+                    doc.addPage();
+                    y = margin; 
+                }
+                doc.text(line, margin, y);
+                y += lineHeight;
+            });
             
             doc.save(`${artist} - ${title}.pdf`);
         }
@@ -201,7 +215,6 @@
 
         // --- Language Detection ---
         function detectLanguage(text) {
-            // Simple heuristic for language detection
             const spanishChars = /[áéíóúñ¿¡]/i;
             const commonSpanishWords = /\b(de|la|el|que|y|en|un)\b/gi;
             if (spanishChars.test(text) || (text.match(commonSpanishWords) || []).length > 5) {
@@ -247,7 +260,7 @@
                 const artistData = data.artists ? data.artists[0] : null;
 
                 if (!artistData) {
-                    return ``; // Don't show anything if no artist info found
+                    return ``; 
                 }
 
                 const bio = artistData.strBiographyES || artistData.strBiographyEN || 'Biografía no disponible.';
